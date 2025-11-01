@@ -49,7 +49,7 @@ const VerifyEmail = () => {
     setLoading(true);
     setError('');
     try {
-      await authService.resendVerification(email);
+      await authService.requestVerification(email);
       setMessage('Verification email sent! Please check your inbox.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send verification email');

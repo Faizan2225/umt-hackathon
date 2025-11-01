@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import Loader from '../components/Loader';
-import api from '../api/axios';
+import { jobService } from '../services/jobService';
+import { uploadAPI } from '../api/upload';
 
 const JobDetails = () => {
   const { id } = useParams();
@@ -23,45 +24,47 @@ const JobDetails = () => {
   const fetchJob = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/jobs/${id}`);
-      setJob(res.data);
+      const jobData = await jobService.getJobById(id);
+      setJob(jobData);
+      
+      // Check if already applied
+      const { applicationsAPI } = await import('../api/applications');
+      const appsData = await applicationsAPI.getMyApplications();
+      const apps = appsData.applications || [];
+      setApplied(apps.some(a => a.job_id === id));
     } catch (err) {
-      setJob({
-        id,
-        title:'Frontend Developer',
-        company:'Tech Corp',
-        location:'Remote',
-        salary:70000,
-        description:'Short description',
-        fullDescription:'Full details...',
-        skills:['React','CSS'],
-        postedDate: new Date().toISOString(),
-      });
+      console.error('Failed to fetch job:', err);
+      setJob(null);
     } finally {
       setLoading(false);
-      const apps = JSON.parse(localStorage.getItem('applications') || '[]');
-      setApplied(apps.some(a => a.jobId === id && a.userId === (user?.id)));
     }
   };
 
   const handleApply = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login', { state: { from: `/jobs/${id}` }});
+    
     try {
-      await api.post(`/jobs/${id}/apply`, { proposal, resume: resume?.name });
-      const saved = JSON.parse(localStorage.getItem('applications') || '[]');
-      saved.push({ jobId: id, userId: user.id, status: 'pending', proposal, appliedAt: new Date().toISOString() });
-      localStorage.setItem('applications', JSON.stringify(saved));
+      let resumeUrl = null;
+      
+      // Upload resume if provided
+      if (resume) {
+        const uploadRes = await uploadAPI.uploadResume(resume);
+        resumeUrl = uploadRes.path;
+      }
+
+      // Apply to job
+      await jobService.applyToJob(id, {
+        proposal,
+        resume_url: resumeUrl,
+      });
+
       setApplied(true);
       setShowApply(false);
-      alert('Applied successfully');
+      alert('Application submitted successfully!');
     } catch (err) {
-      const saved = JSON.parse(localStorage.getItem('applications') || '[]');
-      saved.push({ jobId: id, userId: user?.id, status: 'pending', proposal, appliedAt: new Date().toISOString() });
-      localStorage.setItem('applications', JSON.stringify(saved));
-      setApplied(true);
-      setShowApply(false);
-      alert('Applied (mock)');
+      console.error('Failed to apply:', err);
+      alert(err.response?.data?.detail || 'Failed to submit application');
     }
   };
 
@@ -78,14 +81,47 @@ const JobDetails = () => {
           <div className="flex justify-between items-start gap-4">
             <div>
               <h1 className="text-2xl font-bold">{job.title}</h1>
-              <p className="text-gray-600">{job.company} • {job.location}</p>
-              {job.salary && <p className="mt-2 font-semibold text-indigo-600">${job.salary.toLocaleString()}</p>}
+              <p className="text-gray-600">{job.tags?.join(', ') || 'No tags specified'}</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Posted: {new Date(job.created_at).toLocaleDateString()} | 
+                Views: {job.views || 0} | 
+                Applicants: {job.applicants?.length || 0}
+              </p>
             </div>
             <div>
-              {!applied ? (
-                <button onClick={() => setShowApply(true)} className="glow-button px-4 py-2">Apply Now</button>
-              ) : (
-                <button disabled className="px-4 py-2 bg-green-600 text-white rounded-md">✓ Applied</button>
+              {user && (
+                <>
+                  {user.role === 'seeker' ? (
+                    !applied ? (
+                      <button onClick={() => {
+                        if (!user) {
+                          navigate('/login', { state: { from: `/jobs/${id}` }});
+                          return;
+                        }
+                        setShowApply(true);
+                      }} className="glow-button px-4 py-2">Apply Now</button>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <button disabled className="px-4 py-2 bg-green-600 text-white rounded-md">✓ Applied</button>
+                        <Link to="/applications" className="text-sm text-indigo-600 hover:underline text-center">
+                          View Application Status
+                        </Link>
+                      </div>
+                    )
+                  ) : user.role === 'finder' && job.created_by === (user.id || user._id) ? (
+                    <Link
+                      to={`/job/${id}/applicants`}
+                      className="glow-button px-4 py-2 text-center inline-block"
+                    >
+                      View Applicants ({job.applicants?.length || 0})
+                    </Link>
+                  ) : null}
+                </>
+              )}
+              {!user && (
+                <Link to="/login" className="glow-button px-4 py-2 text-center inline-block">
+                  Login to Apply
+                </Link>
               )}
             </div>
           </div>
@@ -97,14 +133,27 @@ const JobDetails = () => {
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="glass-card p-4">
-              <h4 className="font-semibold mb-2">Skills</h4>
+              <h4 className="font-semibold mb-2">Required Skills/Tags</h4>
               <div className="flex gap-2 flex-wrap">
-                {job.skills?.map((s,i)=><span key={i} className="px-2 py-1 bg-white/60 rounded-full text-xs text-indigo-700">{s}</span>)}
+                {job.tags?.map((tag, i) => (
+                  <span key={i} className="px-2 py-1 bg-white/60 rounded-full text-xs text-indigo-700">
+                    {tag}
+                  </span>
+                ))}
+                {(!job.tags || job.tags.length === 0) && (
+                  <span className="text-xs text-gray-500">No tags specified</span>
+                )}
               </div>
             </div>
             <div className="glass-card p-4">
-              <h4 className="font-semibold mb-2">Details</h4>
-              <p className="text-sm text-gray-600">Posted: {new Date(job.postedDate).toLocaleDateString()}</p>
+              <h4 className="font-semibold mb-2">Job Status</h4>
+              <p className={`text-sm font-semibold ${
+                job.status === 'open' ? 'text-green-600' : 
+                job.status === 'filled' ? 'text-gray-600' : 
+                'text-yellow-600'
+              }`}>
+                {job.status?.charAt(0).toUpperCase() + job.status?.slice(1) || 'Open'}
+              </p>
             </div>
           </div>
         </div>

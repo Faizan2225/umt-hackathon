@@ -1,109 +1,181 @@
-import io from 'socket.io-client';
+import { chatAPI } from '../api/chat';
+import { WebSocketClient } from '../api/websocket';
 
 /**
  * Chat Service
  * Handles real-time messaging via WebSockets
+ * Uses FastAPI WebSocket endpoints
  */
 
-let socket = null;
+let wsClient = null;
 
 export const chatService = {
-  // Initialize socket connection
-  connect: (userId, token) => {
-    if (socket?.connected) {
-      return socket;
+  // Initialize WebSocket connection for a room
+  connect: (roomId, senderId, senderName, onMessage, onError) => {
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+    
+    if (wsClient) {
+      wsClient.disconnect();
     }
 
-    socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      auth: { token },
-      transports: ['websocket'],
-    });
-
-    socket.on('connect', () => {
-      console.log('Connected to chat server');
-      socket.emit('join', userId);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from chat server');
-    });
-
-    return socket;
+    wsClient = new WebSocketClient(wsUrl, roomId, onMessage, onError);
+    wsClient.connect(senderId, senderName);
+    
+    return wsClient;
   },
 
-  // Disconnect socket
+  // Disconnect WebSocket
   disconnect: () => {
-    if (socket) {
-      socket.disconnect();
-      socket = null;
+    if (wsClient) {
+      wsClient.disconnect();
+      wsClient = null;
     }
   },
 
-  // Send message
-  sendMessage: (receiverId, message, jobId = null) => {
-    if (socket) {
-      socket.emit('send-message', {
-        receiverId,
-        message,
-        jobId,
-        timestamp: new Date().toISOString(),
-      });
+  // Send message via WebSocket
+  sendMessage: (message) => {
+    if (wsClient) {
+      wsClient.sendMessage(message);
     }
   },
 
-  // Get conversation messages
-  getMessages: async (conversationId) => {
-    // This would be an HTTP API call to get historical messages
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/chat/conversations/${conversationId}/messages`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      }
-    );
-    return response.json();
+  // Get chat history for a room (HTTP API)
+  getMessages: async (roomId) => {
+    try {
+      const response = await chatAPI.getChatHistory(roomId);
+      // Backend returns { room_id, total_messages, messages }
+      return response.messages || [];
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+      return [];
+    }
   },
 
-  // Get all conversations
+  // Get all conversations from applications
   getConversations: async () => {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/chat/conversations`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+    try {
+      // Get user's applications to generate conversation list
+      const { applicationsAPI } = await import('../api/applications');
+      const { jobService } = await import('./jobService');
+      const { chatAPI } = await import('../api/chat');
+      
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const conversations = [];
+      
+      if (user.role === 'seeker') {
+        // For seekers: conversations are based on jobs they applied to
+        const appsData = await applicationsAPI.getMyApplications();
+        const applications = appsData.applications || [];
+        
+        for (const app of applications) {
+          try {
+            const job = await jobService.getJobById(app.job_id);
+            // Get last message for preview
+            try {
+              const history = await chatAPI.getChatHistory(app.job_id);
+              const lastMsg = history.messages?.[history.messages.length - 1];
+              conversations.push({
+                id: app.job_id,
+                jobId: app.job_id,
+                jobTitle: job.title,
+                participants: [
+                  { id: user.id || user._id, name: user.name },
+                  { id: job.created_by, name: 'Employer' }
+                ],
+                lastMessage: lastMsg?.message || 'No messages yet',
+                application: app
+              });
+            } catch {
+              conversations.push({
+                id: app.job_id,
+                jobId: app.job_id,
+                jobTitle: job.title,
+                participants: [
+                  { id: user.id || user._id, name: user.name },
+                  { id: job.created_by, name: 'Employer' }
+                ],
+                lastMessage: 'No messages yet',
+                application: app
+              });
+            }
+          } catch (error) {
+            console.error('Failed to load job:', error);
+          }
+        }
+      } else if (user.role === 'finder') {
+        // For finders: conversations are based on jobs they posted
+        const allJobs = await jobService.getAllJobs();
+        const myJobs = allJobs.filter(job => job.created_by === (user.id || user._id));
+        
+        for (const job of myJobs) {
+          if (job.applicants && job.applicants.length > 0) {
+            try {
+              const history = await chatAPI.getChatHistory(job.id || job._id);
+              const lastMsg = history.messages?.[history.messages.length - 1];
+              
+              // Create a conversation for each applicant
+              for (const applicantId of job.applicants) {
+                conversations.push({
+                  id: job.id || job._id, // Use job_id as room_id for finders
+                  jobId: job.id || job._id,
+                  jobTitle: job.title,
+                  participants: [
+                    { id: user.id || user._id, name: user.name },
+                    { id: applicantId, name: 'Applicant' }
+                  ],
+                  lastMessage: lastMsg?.message || 'No messages yet',
+                  applicantId: applicantId
+                });
+              }
+            } catch {
+              // If no messages yet, still create conversation entry
+              for (const applicantId of job.applicants) {
+                conversations.push({
+                  id: job.id || job._id,
+                  jobId: job.id || job._id,
+                  jobTitle: job.title,
+                  participants: [
+                    { id: user.id || user._id, name: user.name },
+                    { id: applicantId, name: 'Applicant' }
+                  ],
+                  lastMessage: 'No messages yet',
+                  applicantId: applicantId
+                });
+              }
+            }
+          }
+        }
       }
-    );
-    return response.json();
+      
+      return conversations;
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+      return [];
+    }
   },
 
-  // Listen for new messages
+  // Listen for new messages (handled by WebSocketClient)
   onMessage: (callback) => {
-    if (socket) {
-      socket.on('receive-message', callback);
-    }
+    // This is handled by the WebSocketClient constructor
+    // Use it when creating the connection
+    return callback;
   },
 
-  // Listen for typing indicators
+  // Listen for typing indicators (not implemented in backend yet)
   onTyping: (callback) => {
-    if (socket) {
-      socket.on('typing', callback);
-    }
+    // Not implemented in FastAPI backend yet
+    return callback;
   },
 
-  // Send typing indicator
+  // Send typing indicator (not implemented in backend yet)
   sendTyping: (receiverId, isTyping) => {
-    if (socket) {
-      socket.emit('typing', { receiverId, isTyping });
-    }
+    // Not implemented in FastAPI backend yet
   },
 
   // Remove event listeners
   off: (event, callback) => {
-    if (socket) {
-      socket.off(event, callback);
-    }
+    // WebSocketClient doesn't use event listeners in the same way
+    // Messages are handled via callback
   },
 };
 

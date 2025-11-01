@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JobCardFinder from '../components/JobCardFinder';
 import Loader from '../components/Loader';
-import api from '../api/axios';
+import { jobService } from '../services/jobService';
+import { authService } from '../services/authService';
 import { motion } from 'framer-motion';
 
 const DashboardFinder = () => {
@@ -25,35 +26,72 @@ const DashboardFinder = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const u = localStorage.getItem('user');
-    if (!u) return navigate('/login');
-    const parsedUser = JSON.parse(u);
-    setUser(parsedUser);
-    const ar = localStorage.getItem('activeRole') || parsedUser.role;
-    if (ar !== 'finder') navigate('/dashboard/seeker');
-    fetchJobs();
-  }, []);
+    const loadUserData = async () => {
+      const u = localStorage.getItem('user');
+      if (!u) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        // Always fetch fresh user data from backend to ensure role is up-to-date
+        const freshUser = await authService.getCurrentUser();
+        setUser(freshUser);
+        
+        // Update localStorage with fresh data
+        localStorage.setItem('user', JSON.stringify(freshUser));
+        
+        // Check actual user role from backend
+        const userRole = freshUser.role;
+        
+        // If user role is not finder, redirect to seeker dashboard
+        if (userRole !== 'finder') {
+          navigate('/dashboard/seeker');
+          return;
+        }
+        
+        // User is a finder, fetch jobs
+        fetchJobs();
+      } catch (error) {
+        console.error('Failed to load user data:', error);
+        // Fallback to localStorage data
+        const parsedUser = JSON.parse(u);
+        setUser(parsedUser);
+        
+        if (parsedUser.role !== 'finder') {
+          navigate('/dashboard/seeker');
+          return;
+        }
+        fetchJobs();
+      }
+    };
+
+    loadUserData();
+
+    // Listen for auth changes (role switches)
+    const handleAuthChange = () => {
+      loadUserData();
+    };
+
+    window.addEventListener('auth-change', handleAuthChange);
+    return () => {
+      window.removeEventListener('auth-change', handleAuthChange);
+    };
+  }, [navigate]);
 
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/jobs/my-jobs');
-      setMyJobs(res.data || []);
-    } catch {
-      setMyJobs([
-        {
-          id: 1,
-          title: 'Software Engineer',
-          company: 'CampusConnect Labs',
-          location: 'Remote',
-          salary: 120000,
-          description: 'Build scalable applications using React & Node.js.',
-          skills: ['React', 'Node.js', 'MongoDB'],
-          type: 'full-time',
-          status: 'active',
-          postedDate: new Date().toISOString(),
-        },
-      ]);
+      // Get all jobs and filter by current user (finder's jobs)
+      const allJobs = await jobService.getAllJobs();
+      const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
+      // Filter jobs created by current user
+      const userId = currentUser.id || currentUser._id;
+      const myJobs = allJobs.filter(job => job.created_by === userId || job.created_by === String(userId));
+      setMyJobs(myJobs);
+    } catch (err) {
+      console.error('Failed to fetch jobs:', err);
+      setMyJobs([]);
     } finally {
       setLoading(false);
     }
@@ -66,41 +104,60 @@ const DashboardFinder = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    const payload = {
-      ...newJob,
-      skills: newJob.skills.split(',').map((s) => s.trim()).filter(Boolean),
-    };
-
-    if (editingJob) {
-      setMyJobs((m) =>
-        m.map((j) => (j.id === editingJob.id ? { ...j, ...payload } : j))
-      );
-    } else {
-      setMyJobs((m) => [
-        {
-          id: Date.now(),
-          ...payload,
-          postedDate: new Date().toISOString(),
-          company: user?.name || 'Your Company',
-        },
-        ...m,
-      ]);
+    
+    // ALWAYS fetch fresh user data from backend before checking role
+    let currentUser;
+    try {
+      currentUser = await authService.getCurrentUser();
+      setUser(currentUser);
+      localStorage.setItem('user', JSON.stringify(currentUser));
+    } catch (error) {
+      console.error('Failed to get user data:', error);
+      currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
     }
+    
+    // Check if user is actually a finder
+    if (currentUser.role !== 'finder') {
+      alert('Only finders can post jobs. Please switch to Finder mode first using the Finder button in the navbar.');
+      return;
+    }
+    
+    try {
+      const payload = {
+        title: newJob.title,
+        description: newJob.description,
+        tags: newJob.skills.split(',').map((s) => s.trim()).filter(Boolean),
+      };
 
-    setShowForm(false);
-    setEditingJob(null);
-    setNewJob({
-      title: '',
-      company: '',
-      location: '',
-      salary: '',
-      description: '',
-      skills: '',
-      type: 'part-time',
-      status: 'active',
-    });
+      if (editingJob) {
+        const jobId = editingJob.id || editingJob._id;
+        await jobService.updateJob(jobId, payload);
+        // Refresh jobs list
+        await fetchJobs();
+      } else {
+        await jobService.createJob(payload);
+        // Refresh jobs list
+        await fetchJobs();
+      }
+
+      setShowForm(false);
+      setEditingJob(null);
+      setNewJob({
+        title: '',
+        company: '',
+        location: '',
+        salary: '',
+        description: '',
+        skills: '',
+        type: 'part-time',
+        status: 'active',
+      });
+    } catch (err) {
+      console.error('Failed to save job:', err);
+      alert(err.response?.data?.detail || 'Failed to save job');
+    }
   };
 
   if (loading) return <Loader />;
@@ -138,9 +195,39 @@ const DashboardFinder = () => {
 
         <div className="flex justify-end mb-8">
           <button
-            onClick={() => {
-              setShowForm((s) => !s);
-              setEditingJob(null);
+            onClick={async () => {
+              // If closing form, just close it
+              if (showForm) {
+                setShowForm(false);
+                setEditingJob(null);
+                return;
+              }
+              
+              // If opening form, refresh user data and check role first
+              try {
+                const freshUser = await authService.getCurrentUser();
+                setUser(freshUser);
+                localStorage.setItem('user', JSON.stringify(freshUser));
+                
+                if (freshUser.role !== 'finder') {
+                  alert('Only finders can post jobs. Please switch to Finder mode first using the Finder button in the navbar.');
+                  return;
+                }
+                
+                // User is a finder, show the form
+                setShowForm(true);
+                setEditingJob(null);
+              } catch (error) {
+                console.error('Failed to refresh user data:', error);
+                // Fallback check
+                const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
+                if (currentUser.role !== 'finder') {
+                  alert('Only finders can post jobs. Please switch to Finder mode first using the Finder button in the navbar.');
+                  return;
+                }
+                setShowForm(true);
+                setEditingJob(null);
+              }
             }}
             className="glow-button px-6 py-3 text-white rounded-xl"
           >
@@ -197,7 +284,29 @@ const DashboardFinder = () => {
         <SectionWrapper title="My Job Posts">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myJobs.map((j) => (
-              <JobCardFinder key={j.id} job={j} onEdit={handleEdit} />
+              <JobCardFinder 
+                key={j.id || j._id} 
+                job={j} 
+                onEdit={handleEdit}
+                onDelete={async (jobId) => {
+                  if (window.confirm('Are you sure you want to delete this job?')) {
+                    try {
+                      await jobService.deleteJob(jobId);
+                      await fetchJobs();
+                    } catch (error) {
+                      alert(error.response?.data?.detail || 'Failed to delete job');
+                    }
+                  }
+                }}
+                onMarkFilled={async (jobId) => {
+                  try {
+                    await jobService.updateJob(jobId, { status: 'filled' });
+                    await fetchJobs();
+                  } catch (error) {
+                    alert(error.response?.data?.detail || 'Failed to update job status');
+                  }
+                }}
+              />
             ))}
           </div>
         </SectionWrapper>

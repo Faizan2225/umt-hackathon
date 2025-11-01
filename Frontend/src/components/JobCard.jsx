@@ -6,14 +6,31 @@ const JobCard = ({ job, applied, onApply }) => {
   const [proposal, setProposal] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
 
+  // Button classes separated for readability
+  const applyBtnClass = `glow-button px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-300 ${
+    applied ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:shadow-lg'
+  }`;
+
   const handleApplyClick = () => {
     setShowModal(true);
   };
 
-  const handleSubmit = () => {
-    // Call parent callback to save application
-    onApply({ jobId: job.id || job._id, proposal, resumeFile });
-    setShowModal(false);
+  const handleSubmit = async () => {
+    if (!onApply || typeof onApply !== 'function') {
+      console.error('onApply prop is not provided or is not a function');
+      alert('Application functionality is not available. Please try from the dashboard.');
+      setShowModal(false);
+      return;
+    }
+
+    try {
+      // Call parent callback to save application
+      await onApply({ jobId: job.id || job._id, proposal, resumeFile });
+      setShowModal(false);
+    } catch (error) {
+      console.error('Failed to submit application:', error);
+      alert('Failed to submit application. Please try again.');
+    }
   };
 
   return (
@@ -33,9 +50,7 @@ const JobCard = ({ job, applied, onApply }) => {
             {job.salary ? `$${job.salary.toLocaleString()}` : 'Negotiable'}
           </span>
           <button
-            className={`glow-button px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-300 ${
-              applied ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:shadow-lg'
-            }`}
+            className={applyBtnClass}
             onClick={handleApplyClick}
             disabled={applied}
           >

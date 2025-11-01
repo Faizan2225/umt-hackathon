@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { chatService } from '../services/chatService';
 import Loader from '../components/Loader';
 import { motion } from 'framer-motion';
@@ -13,7 +13,6 @@ const Chat = () => {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [currentConversation, setCurrentConversation] = useState(null);
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
@@ -27,22 +26,29 @@ const Chat = () => {
       return;
     }
 
-    const token = localStorage.getItem('token');
-    socketRef.current = chatService.connect(user.id, token);
     loadConversations();
 
-    chatService.onMessage((data) => {
-      if (data.conversationId === conversationId || !conversationId) {
+    // If we have a conversationId, connect WebSocket and load messages
+    if (conversationId) {
+      const roomId = conversationId;
+      const onMessage = (data) => {
         setMessages((prev) => [...prev, data]);
         scrollToBottom();
-      }
-    });
+      };
+      const onError = (error) => {
+        console.error('WebSocket error:', error);
+      };
 
-    chatService.onTyping((data) => {
-      if (data.conversationId === conversationId) {
-        setIsTyping(data.isTyping);
-      }
-    });
+      socketRef.current = chatService.connect(
+        roomId,
+        user.id,
+        user.name || 'User',
+        onMessage,
+        onError
+      );
+
+      loadMessages(roomId);
+    }
 
     return () => {
       chatService.disconnect();
@@ -84,23 +90,16 @@ const Chat = () => {
   };
 
   const sendMessage = () => {
-    if (!messageInput.trim() || !currentConversation) return;
+    if (!messageInput.trim() || !conversationId) return;
 
-    const receiverId = currentConversation.participants.find((p) => p.id !== user.id)?.id;
-    if (receiverId) {
-      chatService.sendMessage(receiverId, messageInput, currentConversation.jobId);
-      setMessageInput('');
-      handleTyping(false);
-    }
+    chatService.sendMessage(messageInput);
+    setMessageInput('');
+    handleTyping(false);
   };
 
   const handleTyping = (isTypingValue) => {
-    if (currentConversation) {
-      const receiverId = currentConversation.participants.find((p) => p.id !== user.id)?.id;
-      if (receiverId) {
-        chatService.sendTyping(receiverId, isTypingValue);
-      }
-    }
+    // Typing indicators not yet implemented in backend
+    // chatService.sendTyping(receiverId, isTypingValue);
   };
 
   if (loading) return <Loader />;
@@ -123,14 +122,13 @@ const Chat = () => {
             <div className="overflow-y-auto h-[calc(100%-4rem)] custom-scrollbar">
               {conversations.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
-                  No conversations yet. Start chatting from a job post.
+                  No conversations yet. Start chatting from a job application.
                 </div>
               ) : (
                 conversations.map((conv) => (
                   <div
                     key={conv.id}
                     onClick={() => {
-                      setCurrentConversation(conv);
                       navigate(`/chat/${conv.id}`);
                     }}
                     className={`p-4 border-b border-white/30 cursor-pointer transition-all ${
@@ -140,11 +138,16 @@ const Chat = () => {
                     }`}
                   >
                     <div className="font-semibold text-gray-900">
-                      {conv.participants.find((p) => p.id !== user.id)?.name || 'User'}
+                      {conv.jobTitle || conv.participants?.find((p) => p.id !== user.id && p.id !== user._id)?.name || 'Chat'}
                     </div>
                     <div className="text-sm text-gray-600 truncate">
                       {conv.lastMessage || 'No messages yet'}
                     </div>
+                    {conv.application && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Status: {conv.application.status}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -158,38 +161,58 @@ const Chat = () => {
             transition={{ duration: 0.5 }}
             className="lg:col-span-2 backdrop-blur-2xl bg-white/70 border border-white/50 rounded-2xl shadow-xl shadow-indigo-500/10 flex flex-col overflow-hidden"
           >
-            {currentConversation ? (
+            {conversationId ? (
               <>
                 <div className="p-5 border-b border-white/40 flex items-center justify-between bg-gradient-to-r from-indigo-100/40 to-purple-100/40">
-                  <h3 className="text-lg font-bold text-gray-900">
-                    {currentConversation.participants.find((p) => p.id !== user.id)?.name || 'User'}
-                  </h3>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {conversations.find(c => c.id === conversationId)?.jobTitle || 'Chat Room'}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {conversations.find(c => c.id === conversationId)?.participants?.find(p => p.id !== user.id && p.id !== user._id)?.name || 'Chatting about this job'}
+                    </p>
+                  </div>
+                  <Link
+                    to={`/jobs/${conversationId}`}
+                    className="text-sm text-indigo-600 hover:underline px-3 py-1 rounded-lg hover:bg-indigo-50"
+                  >
+                    View Job →
+                  </Link>
                 </div>
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                  {messages.map((msg, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs md:max-w-md px-5 py-3 rounded-2xl ${
-                          msg.senderId === user.id
-                            ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
-                        } shadow-md`}
+                  {messages.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <p>No messages yet. Start the conversation!</p>
+                    </div>
+                  ) : (
+                    messages.map((msg, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className={`flex ${msg.sender_id === user.id || msg.sender_id === user._id ? 'justify-end' : 'justify-start'}`}
                       >
-                        <p className="text-sm">{msg.message}</p>
-                        <p className="text-xs mt-1 opacity-70 text-right">
-                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
+                        <div
+                          className={`max-w-xs md:max-w-md px-5 py-3 rounded-2xl ${
+                            msg.sender_id === user.id || msg.sender_id === user._id
+                              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white'
+                              : 'bg-gray-100 text-gray-900'
+                          } shadow-md`}
+                        >
+                          {msg.sender_id !== user.id && msg.sender_id !== user._id && (
+                            <p className="text-xs mb-1 opacity-70">{msg.sender_name || 'User'}</p>
+                          )}
+                          <p className="text-sm">{msg.message}</p>
+                          <p className={`text-xs mt-1 opacity-70 ${msg.sender_id === user.id || msg.sender_id === user._id ? 'text-right' : 'text-left'}`}>
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
 
                   {isTyping && (
                     <div className="flex justify-start">

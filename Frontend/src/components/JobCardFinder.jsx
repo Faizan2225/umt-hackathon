@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { jobService } from '../services/jobService';
 
 const JobCardFinder = ({ job, onEdit, onDelete, onMarkFilled }) => {
   return (
@@ -53,13 +55,36 @@ const JobCardFinder = ({ job, onEdit, onDelete, onMarkFilled }) => {
             ✏️ Edit
           </button>
           <button
-            onClick={() => onMarkFilled(job.id || job._id)}
+            onClick={() => {
+              if (onMarkFilled) onMarkFilled(job.id || job._id);
+              else {
+                // Default: Update job status to filled
+                jobService.updateJob(job.id || job._id, { status: 'filled' }).then(() => {
+                  window.location.reload();
+                });
+              }
+            }}
             className="px-4 py-2 rounded-lg bg-green-100 text-green-700 text-sm font-semibold hover:bg-green-200 transition-all duration-300"
           >
             ✅ Mark Filled
           </button>
+          <Link
+            to={`/job/${job.id || job._id}/applicants`}
+            className="px-4 py-2 rounded-lg bg-blue-100 text-blue-700 text-sm font-semibold hover:bg-blue-200 transition-all duration-300 text-center"
+          >
+            👥 View Applicants
+          </Link>
           <button
-            onClick={() => onDelete(job.id || job._id)}
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this job?')) {
+                if (onDelete) onDelete(job.id || job._id);
+                else {
+                  jobService.deleteJob(job.id || job._id).then(() => {
+                    window.location.reload();
+                  });
+                }
+              }
+            }}
             className="px-4 py-2 rounded-lg bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition-all duration-300"
           >
             🗑 Delete

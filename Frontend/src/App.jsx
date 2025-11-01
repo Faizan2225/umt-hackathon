@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { chatService } from './services/chatService';
@@ -13,14 +13,49 @@ import DashboardFinder from './pages/DashboardFinder';
 import JobList from './pages/JobList';
 import JobDetails from './pages/JobDetails';
 
-// Optional: comment out if you don’t have these pages yet
-// import ChatPage from './pages/Chat';
-// import Notifications from './pages/Notifications';
+import Chat from './pages/Chat';
+import VerifyEmail from './pages/VerifyEmail';
+import ResetPassword from './pages/ResetPassword';
+import ForgotPassword from './pages/ForgotPassword';
+import Profile from './pages/Profile';
+import Applications from './pages/Applications';
+import JobApplicants from './pages/JobApplicants';
 
 function App() {
   const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  const handleGoogleCallback = async (code) => {
+    try {
+      const { authAPI } = await import('./api/auth');
+      const response = await authAPI.googleCallback(code);
+      
+      if (response.access_token) {
+        localStorage.setItem('token', response.access_token);
+        const userData = await authAPI.getMe();
+        localStorage.setItem('user', JSON.stringify(userData));
+        window.dispatchEvent(new Event('auth-change'));
+        
+        // Google OAuth users are automatically verified
+        // Redirect to appropriate dashboard
+        const role = userData.role || 'seeker';
+        navigate(role === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder', { replace: true });
+      }
+    } catch (error) {
+      console.error('Google OAuth callback failed:', error);
+      navigate('/login?error=oauth_failed', { replace: true });
+    }
+  };
 
   useEffect(() => {
+    // Handle Google OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+      handleGoogleCallback(code);
+      return;
+    }
+
     const storedUser = localStorage.getItem('user');
     const parsedUser = storedUser ? JSON.parse(storedUser) : null;
     setUser(parsedUser);
@@ -32,12 +67,6 @@ function App() {
     };
     window.addEventListener('auth-change', handleAuthChange);
     window.addEventListener('storage', handleAuthChange);
-
-    // Initialize chat socket if user exists
-    if (parsedUser) {
-      const token = localStorage.getItem('token');
-      chatService.connect(parsedUser._id, token);
-    }
 
     return () => {
       window.removeEventListener('auth-change', handleAuthChange);
@@ -59,6 +88,9 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route
             path="/dashboard/seeker"
@@ -80,25 +112,41 @@ function App() {
           <Route path="/jobs" element={<JobList />} />
           <Route path="/jobs/:id" element={<JobDetails />} />
 
-          {/* Uncomment these if you have ChatPage or Notifications */}
-          {/* 
           <Route
-            path="/chat/:conversationId"
+            path="/chat/:conversationId?"
             element={
               <PrivateRoute>
-                <ChatPage />
+                <Chat />
               </PrivateRoute>
             }
           />
+
           <Route
-            path="/notifications"
+            path="/profile"
             element={
               <PrivateRoute>
-                <Notifications />
+                <Profile />
               </PrivateRoute>
             }
           />
-          */}
+
+          <Route
+            path="/applications"
+            element={
+              <PrivateRoute>
+                <Applications />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/job/:jobId/applicants"
+            element={
+              <PrivateRoute>
+                <JobApplicants />
+              </PrivateRoute>
+            }
+          />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

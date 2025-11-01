@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api/axios';
+import { authService } from '../services/authService';
 import { motion } from 'framer-motion';
 
 /**
@@ -18,6 +18,7 @@ const Register = () => {
     role: 'seeker',
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -43,28 +44,17 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // API registration (mock fallback)
+      // Backend expects: name, email, password
       const { confirmPassword, ...registerData } = formData;
-      const response = await api.post('/auth/register', registerData);
-      const { token, user } = response.data;
+      await authService.register(registerData);
 
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      window.dispatchEvent(new Event('auth-change'));
-
-      navigate(user.role === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder');
+      // Show success and redirect to verification page
+      setSuccess('Registration successful! Please verify your email before logging in.');
+      setTimeout(() => {
+        navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+      }, 1500);
     } catch (err) {
-      console.warn('Backend not ready, using mock registration');
-      const mockUser = {
-        id: Date.now(),
-        email: formData.email,
-        name: formData.name,
-        role: formData.role,
-      };
-      localStorage.setItem('token', 'mock-token-' + Date.now());
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      window.dispatchEvent(new Event('auth-change'));
-      navigate(mockUser.role === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder');
+      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -91,6 +81,12 @@ const Register = () => {
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg mb-4">
             <p className="font-medium">{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded-lg mb-4">
+            <p className="font-medium">{success}</p>
           </div>
         )}
 

@@ -48,7 +48,7 @@ const ResetPassword = () => {
         navigate('/login');
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to reset password. Link may be expired.');
+      setError(err.response?.data?.detail || err.response?.data?.message || 'Failed to reset password. Link may be expired.');
     } finally {
       setLoading(false);
     }

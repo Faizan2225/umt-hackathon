@@ -24,12 +24,21 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = () => {
+    // Clear all stored data
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('activeRole');
+    localStorage.removeItem('applications');
+    localStorage.removeItem('bookmarks');
+    
+    // Dispatch auth change event
     window.dispatchEvent(new Event('auth-change'));
-    navigate('/');
+    
+    // Close mobile menu if open
     setMobileOpen(false);
+    
+    // Navigate to login page
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -56,7 +65,19 @@ const Navbar = () => {
             ) : (
               <>
                 <RoleSwitcher user={user} />
-                <Link to={ (localStorage.getItem('activeRole') || user.activeRole || user.role) === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder' } className="text-gray-800 hover:text-indigo-600">Dashboard</Link>
+
+                {/* Compute dashboard path in a variable for readability */}
+                {(() => {
+                  const activeRole = localStorage.getItem('activeRole');
+                  const userRole = user?.role;
+                  const dashboardPath = (activeRole || userRole) === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder';
+                  return (
+                    <Link to={dashboardPath} className="text-gray-800 hover:text-indigo-600">Dashboard</Link>
+                  );
+                })()}
+
+                <Link to="/profile" className="text-gray-800 hover:text-indigo-600">Profile</Link>
+                <Link to="/applications" className="text-gray-800 hover:text-indigo-600">Applications</Link>
                 <button onClick={handleLogout} className="text-red-600 hover:underline">Logout</button>
               </>
             )}

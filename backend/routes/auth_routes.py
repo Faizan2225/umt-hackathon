@@ -32,7 +32,26 @@ async def register_user(user: RegisterSchema):
     hashed = hash_password(user.password)
     new_user = User(name=user.name, email=user.email, hashed_password=hashed)
     await new_user.insert()
-    return {"msg": "User registered successfully."}
+    
+    # Try to send verification email (non-blocking)
+    try:
+        token = generate_token(new_user.email, purpose="email-verify")
+        await send_verification_email(new_user.email, token)
+    except Exception as e:
+        # Don't fail registration if email fails, log it instead
+        import os
+        FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        token = generate_token(new_user.email, purpose="email-verify")
+        verification_url = f"{FRONTEND_URL}/verify-email?token={token}"
+        print(f"⚠️ Failed to send verification email: {e}")
+        print(f"💡 Verification link (for development): {verification_url}")
+        # In development, we can return the link
+        return {
+            "msg": "User registered successfully. Please check your email for verification link.",
+            "verification_url": verification_url if "localhost" in FRONTEND_URL else None
+        }
+    
+    return {"msg": "User registered successfully. Please check your email for verification link."}
 
 @router.post("/login")
 async def login_user(data: LoginSchema):
@@ -62,8 +81,18 @@ async def request_verification(email_schema: ForgotPasswordSchema):
     if user.verified:
         return {"msg": "Already verified"}
     token = generate_token(user.email, purpose="email-verify")
-    await send_verification_email(user.email, token)
-    return {"msg": "Verification email sent"}
+    try:
+        await send_verification_email(user.email, token)
+        return {"msg": "Verification email sent"}
+    except Exception as e:
+        # Return token in response if email fails (for development)
+        import os
+        FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        verification_url = f"{FRONTEND_URL}/verify-email?token={token}"
+        raise HTTPException(
+            status_code=503,
+            detail=f"Email service unavailable. For development, use this link: {verification_url}"
+        )
 
 @router.get("/verify")
 async def verify_email(token: str):
@@ -85,8 +114,18 @@ async def forgot_password(request: ForgotPasswordSchema):
     token = generate_token(user.email, purpose="password-reset")
     user.reset_password_token = token
     await user.save()
-    await send_reset_password_email(user.email, token)
-    return {"msg": "Password reset email sent"}
+    try:
+        await send_reset_password_email(user.email, token)
+        return {"msg": "Password reset email sent"}
+    except Exception as e:
+        # Return token in response if email fails (for development)
+        import os
+        FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        reset_url = f"{FRONTEND_URL}/reset-password?token={token}"
+        raise HTTPException(
+            status_code=503,
+            detail=f"Email service unavailable. For development, use this link: {reset_url}"
+        )
 
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordSchema):

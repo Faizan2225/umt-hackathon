@@ -8,6 +8,6 @@ router = APIRouter(prefix="/chat", tags=["Chat History"])
 async def get_chat_history(room_id: str, current_user=Depends(get_current_user)):
     """Fetch chat history for a specific room"""
     messages = await ChatMessage.find(ChatMessage.room_id == room_id).sort("+timestamp").to_list()
-    if not messages:
-        raise HTTPException(status_code=404, detail="No chat history found")
+    # Return an empty message list if no history exists yet.
+    # The frontend expects a 200 response and can render an empty conversation.
     return {"room_id": room_id, "total_messages": len(messages), "messages": messages}
