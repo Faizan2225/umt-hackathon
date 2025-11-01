@@ -8,6 +8,8 @@ dependencies = [
     "bcrypt==4.0.1",
     "beanie>=2.0.0",
     "fastapi>=0.120.4",
+    "fastapi-mail>=1.5.2",
+    "itsdangerous>=2.2.0",
     "motor>=3.7.1",
     "passlib[bcrypt]>=1.7.4",
     "pydantic[email]>=2.12.3",

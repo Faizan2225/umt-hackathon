@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional, List
-from app.models.application_model import Application
-from app.models.job_model import Job
-from app.core.dependencies import get_current_user
+from models.application_model import Application
+from models.job_model import Job
+from core.dependencies import get_current_user
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 

@@ -2,19 +2,21 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import os
 from typing import List
 from pydantic import EmailStr
-from app.core.config import SECRET_KEY
+from core.config import SECRET_KEY
+
+
 
 conf = ConnectionConfig(
-    MAIL_USERNAME = os.getenv("SMTP_USER"),
-    MAIL_PASSWORD = os.getenv("SMTP_PASSWORD"),
-    MAIL_FROM = os.getenv("SMTP_USER"),
-    MAIL_PORT = int(os.getenv("SMTP_PORT", 587)),
-    MAIL_SERVER = os.getenv("SMTP_HOST"),
-    MAIL_TLS = True,
-    MAIL_SSL = False,
-    USE_CREDENTIALS = True,
-    TEMPLATE_FOLDER = "app/templates/email"   # if you're using templates
+    MAIL_USERNAME=os.getenv("SMTP_USER"),
+    MAIL_PASSWORD=os.getenv("SMTP_PASSWORD"),  # just plain string
+    MAIL_FROM=os.getenv("SMTP_USER"),
+    MAIL_PORT=int(os.getenv("SMTP_PORT")),
+    MAIL_SERVER=os.getenv("SMTP_HOST"),
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=True,
 )
+
 
 async def send_verification_email(email_to: EmailStr, token: str):
     message = MessageSchema(

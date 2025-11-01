@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.models.job_model import Job
-from app.core.dependencies import get_current_user
+from models.job_model import Job
+from core.dependencies import get_current_user
 from pydantic import BaseModel
 from typing import List, Optional
 
