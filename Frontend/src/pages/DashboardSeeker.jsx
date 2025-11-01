@@ -88,9 +88,12 @@ const DashboardSeeker = () => {
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="mb-12"
+      className="mb-14 sm:mb-16"
     >
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">{title}</h2>
+      <div className="flex items-center gap-3 mb-8">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h2>
+        <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent"></div>
+      </div>
       {children}
     </motion.section>
   );
@@ -99,29 +102,35 @@ const DashboardSeeker = () => {
     <div className="min-h-screen relative bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="campus-dots"></div>
 
-      <main className="max-w-7xl mx-auto px-6 md:px-10 py-16 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-12 sm:py-16 relative z-10">
         <motion.div
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.4 }}
-          className="mb-12 text-center"
+          className="mb-14 sm:mb-16 text-center"
         >
-          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
-            Welcome back, <span className="text-indigo-600">{user?.name || 'Seeker'}</span>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 mb-4 leading-tight">
+            Welcome back, <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">{user?.name || 'Seeker'}</span>
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Manage applications and explore new opportunities.
           </p>
         </motion.div>
 
         {/* Recommended Jobs */}
-        <SectionWrapper title="Recommended Jobs">
+        <SectionWrapper title="⭐ Recommended Jobs">
           {recommended.length === 0 ? (
-            <div className="glass-card p-10 text-center text-gray-600">
-              No recommended jobs yet. Complete your profile to get personalized recommendations.
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-card p-12 sm:p-16 text-center rounded-2xl border border-white/50"
+            >
+              <div className="text-5xl mb-4">📋</div>
+              <p className="text-lg font-semibold text-gray-700 mb-2">No recommendations yet</p>
+              <p className="text-gray-600">Complete your profile to get personalized job recommendations.</p>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {recommended.map((j) => (
                 <JobCard
                   key={j.id || j._id}
@@ -135,38 +144,61 @@ const DashboardSeeker = () => {
         </SectionWrapper>
 
         {/* My Applications */}
-        <SectionWrapper title="My Applications">
-          <div className="flex justify-between items-center mb-4">
+        <SectionWrapper title="📝 My Applications">
+          <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
             <Link
               to="/applications"
-              className="text-indigo-600 hover:text-purple-600 font-semibold"
+              className="text-indigo-600 hover:text-purple-600 font-semibold text-sm sm:text-base transition-colors flex items-center gap-2 group"
             >
-              View All Applications →
+              View All Applications
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
             </Link>
             <Link
               to="/chat"
-              className="text-indigo-600 hover:text-purple-600 font-semibold"
+              className="px-4 py-2 rounded-xl text-sm sm:text-base font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
             >
               💬 View Messages
             </Link>
           </div>
           {applied.length === 0 ? (
-            <div className="glass-card p-10 text-center text-gray-600">
-              You haven't applied to any jobs yet. Browse jobs and apply!
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-card p-12 sm:p-16 text-center rounded-2xl border border-white/50"
+            >
+              <div className="text-5xl mb-4">📝</div>
+              <p className="text-lg font-semibold text-gray-700 mb-2">No applications yet</p>
+              <p className="text-gray-600 mb-6">Browse jobs and apply to get started!</p>
+              <Link
+                to="/jobs"
+                className="inline-block px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+              >
+                Browse Jobs
+              </Link>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {applications.slice(0, 3).map((app) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+              {applications.slice(0, 3).map((app, idx) => {
                 const job = recommended.find(j => (j.id || j._id) === app.job_id);
                 if (!job) return null;
                 return (
-                  <div key={app.id || app._id} className="glass-card p-6 rounded-2xl">
-                    <Link to={`/jobs/${app.job_id}`}>
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">{job.title}</h3>
+                  <motion.div
+                    key={app.id || app._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="glass-card p-6 sm:p-8 rounded-2xl border border-white/50 hover:shadow-xl transition-all duration-300 group"
+                  >
+                    <Link to={`/jobs/${app.job_id}`} className="block mb-4">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors leading-tight">
+                        {job.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                        {job.description?.substring(0, 100)}...
+                      </p>
                     </Link>
-                    <p className="text-sm text-gray-600 mb-3">{job.description?.substring(0, 100)}...</p>
-                    <div className="flex justify-between items-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    <div className="flex justify-between items-center pt-4 border-t border-gray-200/60">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
                         app.status === 'Accepted' ? 'bg-green-100 text-green-800' :
                         app.status === 'Shortlisted' ? 'bg-blue-100 text-blue-800' :
                         app.status === 'Rejected' ? 'bg-red-100 text-red-800' :
@@ -176,21 +208,22 @@ const DashboardSeeker = () => {
                       </span>
                       <Link
                         to={`/chat/${app.job_id}`}
-                        className="text-sm text-indigo-600 hover:underline"
+                        className="px-4 py-1.5 rounded-lg text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
                       >
                         💬 Chat
                       </Link>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
               {applications.length > 3 && (
                 <Link
                   to="/applications"
-                  className="glass-card p-6 rounded-2xl text-center hover:bg-indigo-50 transition-colors flex items-center justify-center"
+                  className="glass-card p-6 sm:p-8 rounded-2xl text-center hover:bg-indigo-50 transition-all duration-300 flex items-center justify-center group border border-white/50 hover:border-indigo-200 hover:shadow-lg"
                 >
-                  <p className="text-gray-700 font-semibold">
-                    View {applications.length - 3} more applications →
+                  <p className="text-gray-700 font-semibold group-hover:text-indigo-600 transition-colors">
+                    View {applications.length - 3} more applications
+                    <span className="block mt-2 text-2xl group-hover:translate-x-2 transition-transform inline-block">→</span>
                   </p>
                 </Link>
               )}

@@ -8,13 +8,29 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const u = localStorage.getItem('user');
-    setUser(u ? JSON.parse(u) : null);
+    // Check both user and token to ensure proper authentication state
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const u = localStorage.getItem('user');
+      
+      // Only set user if both token and user exist
+      if (token && u) {
+        try {
+          setUser(JSON.parse(u));
+        } catch {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    checkAuth();
 
     const handleAuth = () => {
-      const u2 = localStorage.getItem('user');
-      setUser(u2 ? JSON.parse(u2) : null);
+      checkAuth();
     };
+    
     window.addEventListener('auth-change', handleAuth);
     window.addEventListener('storage', handleAuth);
     return () => {
@@ -50,34 +66,74 @@ const Navbar = () => {
             <span className="hidden sm:inline text-lg font-bold text-gray-900">CampusConnect</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-gray-800 hover:text-indigo-600">Home</Link>
-            <Link to="/jobs" className="text-gray-800 hover:text-indigo-600">Jobs</Link>
-            <Link to="/about" className="text-gray-800 hover:text-indigo-600">About</Link>
+          <div className="hidden md:flex items-center gap-8">
+            <Link
+              to="/"
+              className="text-gray-800 hover:text-indigo-600 font-medium transition-colors duration-200"
+            >
+              Home
+            </Link>
+            <Link
+              to="/jobs"
+              className="text-gray-800 hover:text-indigo-600 font-medium transition-colors duration-200"
+            >
+              Jobs
+            </Link>
+            <Link
+              to="/about"
+              className="text-gray-800 hover:text-indigo-600 font-medium transition-colors duration-200"
+            >
+              About
+            </Link>
           </div>
 
           <div className="hidden md:flex items-center gap-4">
             {!user ? (
               <>
-                <Link to="/login" className="text-gray-800 hover:text-indigo-600">Login</Link>
-                <Link to="/register" className="glow-button px-4 py-2">Sign up</Link>
+                <Link
+                  to="/login"
+                  className="text-gray-800 hover:text-indigo-600 font-medium transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-indigo-50"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="glow-button px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  Sign up
+                </Link>
               </>
             ) : (
               <>
                 <RoleSwitcher user={user} />
-                <Link 
+                <Link
                   to={(() => {
                     const activeRole = localStorage.getItem('activeRole');
                     const userRole = user?.role;
                     return (activeRole || userRole) === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder';
-                  })()} 
-                  className="text-gray-800 hover:text-indigo-600"
+                  })()}
+                  className="text-gray-800 hover:text-indigo-600 font-medium transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-indigo-50"
                 >
                   Dashboard
                 </Link>
-                <Link to="/profile" className="text-gray-800 hover:text-indigo-600">Profile</Link>
-                <Link to="/applications" className="text-gray-800 hover:text-indigo-600">Applications</Link>
-                <button onClick={handleLogout} className="text-red-600 hover:underline">Logout</button>
+                <Link
+                  to="/profile"
+                  className="text-gray-800 hover:text-indigo-600 font-medium transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-indigo-50"
+                >
+                  Profile
+                </Link>
+                <Link
+                  to="/applications"
+                  className="text-gray-800 hover:text-indigo-600 font-medium transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-indigo-50"
+                >
+                  Applications
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 font-medium transition-all duration-200"
+                >
+                  Logout
+                </button>
               </>
             )}
           </div>
@@ -96,20 +152,85 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Menu */}
-      <div className={`md:hidden transition-all ${isMobileOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-        <div className="px-4 pt-4 pb-6 space-y-3">
-          <Link to="/" onClick={() => setMobileOpen(false)} className="block py-2">Home</Link>
-          <Link to="/jobs" onClick={() => setMobileOpen(false)} className="block py-2">Jobs</Link>
-          <Link to="/about" onClick={() => setMobileOpen(false)} className="block py-2">About</Link>
+      <div className={`md:hidden transition-all ${isMobileOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'} overflow-hidden bg-white/95 backdrop-blur-xl border-t border-gray-200/50`}>
+        <div className="px-4 pt-4 pb-6 space-y-2">
+          <Link
+            to="/"
+            onClick={() => setMobileOpen(false)}
+            className="block py-3 px-3 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+          >
+            Home
+          </Link>
+          <Link
+            to="/jobs"
+            onClick={() => setMobileOpen(false)}
+            className="block py-3 px-3 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+          >
+            Jobs
+          </Link>
+          <Link
+            to="/about"
+            onClick={() => setMobileOpen(false)}
+            className="block py-3 px-3 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+          >
+            About
+          </Link>
           {!user ? (
             <>
-              <Link to="/login" onClick={() => setMobileOpen(false)} className="block py-2">Login</Link>
-              <Link to="/register" onClick={() => setMobileOpen(false)} className="block py-2 glow-button text-center">Sign up</Link>
+              <Link
+                to="/login"
+                onClick={() => setMobileOpen(false)}
+                className="block py-3 px-3 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+              >
+                Login
+              </Link>
+              <Link
+                to="/register"
+                onClick={() => setMobileOpen(false)}
+                className="block py-3 px-3 rounded-lg glow-button text-center font-semibold"
+              >
+                Sign up
+              </Link>
             </>
           ) : (
             <>
-              <div className="py-2"><RoleSwitcher user={user} /></div>
-              <button onClick={() => { setMobileOpen(false); handleLogout(); }} className="w-full text-left py-2 text-red-600">Logout</button>
+              <div className="py-2 px-3">
+                <RoleSwitcher user={user} />
+              </div>
+              <Link
+                to={(() => {
+                  const activeRole = localStorage.getItem('activeRole');
+                  const userRole = user?.role;
+                  return (activeRole || userRole) === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder';
+                })()}
+                onClick={() => setMobileOpen(false)}
+                className="block py-3 px-3 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="block py-3 px-3 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+              >
+                Profile
+              </Link>
+              <Link
+                to="/applications"
+                onClick={() => setMobileOpen(false)}
+                className="block py-3 px-3 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+              >
+                Applications
+              </Link>
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  handleLogout();
+                }}
+                className="w-full text-left py-3 px-3 rounded-lg text-red-600 hover:bg-red-50 font-medium transition-colors"
+              >
+                Logout
+              </button>
             </>
           )}
         </div>

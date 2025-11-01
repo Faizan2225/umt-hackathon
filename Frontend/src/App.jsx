@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { chatService } from './services/chatService';
@@ -24,6 +24,11 @@ import JobApplicants from './pages/JobApplicants';
 function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Routes where navbar should be hidden
+  const hideNavbarRoutes = ['/', '/login', '/register'];
+  const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
   const handleGoogleCallback = async (code) => {
     try {
@@ -82,7 +87,7 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
+      {showNavbar && <Navbar />}
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Landing />} />

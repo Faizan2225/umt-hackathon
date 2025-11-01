@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Loader from '../components/Loader';
 import { jobService } from '../services/jobService';
 import { uploadAPI } from '../api/upload';
@@ -72,21 +73,48 @@ const JobDetails = () => {
   if (!job) return <div className="min-h-screen flex items-center justify-center">Job not found</div>;
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative pt-20 pb-20">
       <div className="campus-dots"></div>
-      <div className="max-w-4xl mx-auto px-4 py-10">
-        <Link to="/jobs" className="text-indigo-600 hover:underline mb-4 inline-block">← Back to jobs</Link>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <Link
+          to="/jobs"
+          className="inline-flex items-center gap-2 text-indigo-600 hover:text-purple-600 mb-6 font-medium transition-colors duration-200 group"
+        >
+          <span className="group-hover:-translate-x-1 transition-transform">←</span>
+          Back to jobs
+        </Link>
 
-        <div className="glass-card p-6 mb-6">
-          <div className="flex justify-between items-start gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">{job.title}</h1>
-              <p className="text-gray-600">{job.tags?.join(', ') || 'No tags specified'}</p>
-              <p className="text-sm text-gray-500 mt-2">
-                Posted: {new Date(job.created_at).toLocaleDateString()} | 
-                Views: {job.views || 0} | 
-                Applicants: {job.applicants?.length || 0}
-              </p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 sm:p-8 lg:p-10 mb-8 rounded-2xl border border-white/50 shadow-xl"
+        >
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-6 mb-6">
+            <div className="flex-1 space-y-3">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">{job.title}</h1>
+              {job.tags && job.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {job.tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 pt-2">
+                <span className="flex items-center gap-1">
+                  📅 Posted: {new Date(job.created_at).toLocaleDateString()}
+                </span>
+                <span className="flex items-center gap-1">
+                  👁️ Views: {job.views || 0}
+                </span>
+                <span className="flex items-center gap-1">
+                  👥 Applicants: {job.applicants?.length || 0}
+                </span>
+              </div>
             </div>
             <div>
               {user && (
@@ -156,7 +184,7 @@ const JobDetails = () => {
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {showApply && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
