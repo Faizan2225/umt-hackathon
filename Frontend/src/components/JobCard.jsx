@@ -1,65 +1,84 @@
-import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useState } from 'react';
 
-/**
- * JobCard Component
- * Modern job card with hover animations and gradient accents
- * - Smooth scale-up and shadow increase on hover
- * - Gradient tags for skills
- * - Clean, modern styling
- */
-const JobCard = ({ job }) => {
+const JobCard = ({ job, applied, onApply }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [proposal, setProposal] = useState('');
+  const [resumeFile, setResumeFile] = useState(null);
+
+  const handleApplyClick = () => {
+    setShowModal(true);
+  };
+
+  const handleSubmit = () => {
+    // Call parent callback to save application
+    onApply({ jobId: job.id || job._id, proposal, resumeFile });
+    setShowModal(false);
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 p-6 border border-gray-100 hover:scale-[1.02] hover:border-indigo-200 group">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1">
-          <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors duration-200">
-            {job.title || 'Software Engineer'}
-          </h3>
-          <p className="text-gray-600 text-sm mb-2 flex items-center gap-2">
-            <span className="font-medium">{job.company || 'Company Name'}</span>
-            <span className="text-gray-400">•</span>
-            <span>{job.location || 'Remote'}</span>
-          </p>
-        </div>
-        {job.salary && (
-          <span className="px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-semibold text-sm shadow-md">
-            ${(job.salary / 1000).toFixed(0)}k
+    <>
+      <motion.div
+        whileHover={{ y: -6, scale: 1.02 }}
+        transition={{ type: 'spring', stiffness: 250, damping: 15 }}
+        className="glass-card relative overflow-hidden p-6 rounded-2xl shadow-md border border-white/30 backdrop-blur-lg bg-white/50 hover:shadow-xl transition-all duration-300"
+      >
+        {/* Job Info */}
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{job.title}</h3>
+        <p className="text-gray-700 font-medium mb-1">{job.company}</p>
+        <p className="text-sm text-gray-600 mb-3">{job.location}</p>
+        <p className="text-gray-700 text-sm line-clamp-3 leading-relaxed mb-3">{job.description}</p>
+        <div className="flex justify-between items-center pt-3 border-t border-gray-200/40">
+          <span className="text-indigo-700 font-semibold">
+            {job.salary ? `$${job.salary.toLocaleString()}` : 'Negotiable'}
           </span>
-        )}
-      </div>
-      
-      <p className="text-gray-700 mb-4 line-clamp-2 text-sm leading-relaxed">
-        {job.description || 'Job description goes here...'}
-      </p>
-      
-      <div className="flex flex-wrap gap-2 mb-4">
-        {job.skills?.slice(0, 3).map((skill, index) => (
-          <span
-            key={index}
-            className="px-3 py-1 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 rounded-full text-xs font-medium border border-indigo-100"
+          <button
+            className={`glow-button px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-300 ${
+              applied ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:shadow-lg'
+            }`}
+            onClick={handleApplyClick}
+            disabled={applied}
           >
-            {skill}
-          </span>
-        ))}
-        {job.skills?.length > 3 && (
-          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-            +{job.skills.length - 3} more
-          </span>
-        )}
-      </div>
-      
-      <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-        <span className="text-xs text-gray-500">
-          {job.postedDate ? new Date(job.postedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recently'}
-        </span>
-        <Link
-          to={`/jobs/${job.id || job._id || 1}`}
-          className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
-        >
-          View Details →
-        </Link>
-      </div>
-    </div>
+            {applied ? 'Applied – Pending' : 'Apply Now'}
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Modal for resume/proposal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-lg">
+            <h3 className="text-lg font-bold mb-4">Apply for {job.title}</h3>
+            <textarea
+              placeholder="Write a proposal..."
+              className="w-full border p-2 rounded mb-4"
+              value={proposal}
+              onChange={(e) => setProposal(e.target.value)}
+            />
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="mb-4"
+              onChange={(e) => setResumeFile(e.target.files[0])}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
