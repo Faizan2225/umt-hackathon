@@ -8,7 +8,6 @@ import { chatService } from './services/chatService';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ForgetPassword from './pages/ForgetPassword'; // ✅ Import ForgetPassword page
 import DashboardSeeker from './pages/DashboardSeeker';
 import DashboardFinder from './pages/DashboardFinder';
 import JobList from './pages/JobList';
@@ -86,7 +85,6 @@ function App() {
       <Navbar />
       <main className="flex-grow">
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -94,7 +92,6 @@ function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* Protected Routes */}
           <Route
             path="/dashboard/seeker"
             element={

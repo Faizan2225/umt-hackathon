@@ -65,17 +65,16 @@ const Navbar = () => {
             ) : (
               <>
                 <RoleSwitcher user={user} />
-
-                {/* Compute dashboard path in a variable for readability */}
-                {(() => {
-                  const activeRole = localStorage.getItem('activeRole');
-                  const userRole = user?.role;
-                  const dashboardPath = (activeRole || userRole) === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder';
-                  return (
-                    <Link to={dashboardPath} className="text-gray-800 hover:text-indigo-600">Dashboard</Link>
-                  );
-                })()}
-
+                <Link 
+                  to={(() => {
+                    const activeRole = localStorage.getItem('activeRole');
+                    const userRole = user?.role;
+                    return (activeRole || userRole) === 'seeker' ? '/dashboard/seeker' : '/dashboard/finder';
+                  })()} 
+                  className="text-gray-800 hover:text-indigo-600"
+                >
+                  Dashboard
+                </Link>
                 <Link to="/profile" className="text-gray-800 hover:text-indigo-600">Profile</Link>
                 <Link to="/applications" className="text-gray-800 hover:text-indigo-600">Applications</Link>
                 <button onClick={handleLogout} className="text-red-600 hover:underline">Logout</button>

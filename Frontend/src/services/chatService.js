@@ -42,11 +42,24 @@ export const chatService = {
   // Get chat history for a room (HTTP API)
   getMessages: async (roomId) => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('No token available for chat history');
+        return [];
+      }
+      
       const response = await chatAPI.getChatHistory(roomId);
       // Backend returns { room_id, total_messages, messages }
       return response.messages || [];
     } catch (error) {
-      console.error('Failed to load messages:', error);
+      // 404 is normal for new conversations (no messages yet)
+      if (error.response?.status === 404) {
+        return [];
+      }
+      // Only log other errors
+      if (error.response?.status !== 401) {
+        console.error('Failed to load messages:', error);
+      }
       return [];
     }
   },
@@ -85,7 +98,11 @@ export const chatService = {
                 lastMessage: lastMsg?.message || 'No messages yet',
                 application: app
               });
-            } catch {
+            } catch (error) {
+              // 404 is normal for new conversations (no messages yet)
+              if (error.response?.status !== 404 && error.response?.status !== 401) {
+                console.error('Error loading chat history:', error);
+              }
               conversations.push({
                 id: app.job_id,
                 jobId: app.job_id,
@@ -127,7 +144,11 @@ export const chatService = {
                   applicantId: applicantId
                 });
               }
-            } catch {
+            } catch (error) {
+              // 404 is normal for new conversations (no messages yet)
+              if (error.response?.status !== 404 && error.response?.status !== 401) {
+                console.error('Error loading chat history:', error);
+              }
               // If no messages yet, still create conversation entry
               for (const applicantId of job.applicants) {
                 conversations.push({

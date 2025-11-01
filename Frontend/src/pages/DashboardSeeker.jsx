@@ -109,7 +109,6 @@ const DashboardSeeker = () => {
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
             Welcome back, <span className="text-indigo-600">{user?.name || 'Seeker'}</span>
           </h1>
-          <br></br>
           <p className="text-lg text-gray-600">
             Manage applications and explore new opportunities.
           </p>

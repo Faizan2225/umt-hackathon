@@ -3,6 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { motion } from 'framer-motion';
 
+/**
+ * Register Page — Elegant Glassmorphism UI
+ * - Matches Landing Page aesthetics
+ * - Centered card with subtle blur & glow effects
+ * - Smooth animations using Framer Motion
+ */
 const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -55,7 +61,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center px-6 py-20 overflow-hidden">
+    <div className="min-h-screen relative flex items-center justify-center px-4 py-16 overflow-hidden">
       {/* Background Dots */}
       <div className="campus-dots"></div>
 
@@ -63,17 +69,17 @@ const Register = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="glass-card relative z-10 w-full max-w-lg p-12 rounded-3xl shadow-2xl border border-white/40 backdrop-blur-xl"
+        className="glass-card relative z-10 w-full max-w-md p-10 rounded-2xl shadow-2xl border border-white/40 backdrop-blur-lg"
       >
-        <h2 className="text-4xl font-bold text-center text-gray-900 mb-3">
+        <h2 className="text-4xl font-bold text-center text-gray-900 mb-2">
           Create Account
         </h2>
-        <p className="text-center text-gray-600 mb-10">
+        <p className="text-center text-gray-600 mb-8">
           Join <span className="text-indigo-600 font-semibold">CampusConnect</span> today
         </p>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg mb-4">
             <p className="font-medium">{error}</p>
           </div>
         )}
@@ -96,12 +102,12 @@ const Register = () => {
               value={formData.name}
               onChange={handleChange}
               placeholder="John Doe"
-              className="glass-input w-full px-5 py-3.5 rounded-xl placeholder-gray-400 text-gray-900"
+              className="glass-input w-full px-4 py-3 rounded-xl placeholder-gray-400 text-gray-900"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Email Address
             </label>
             <input
@@ -111,55 +117,53 @@ const Register = () => {
               value={formData.email}
               onChange={handleChange}
               placeholder="you@example.com"
-              className="glass-input w-full px-5 py-3.5 rounded-xl placeholder-gray-400 text-gray-900"
+              className="glass-input w-full px-4 py-3 rounded-xl placeholder-gray-400 text-gray-900"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               I am a...
             </label>
             <select
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="glass-input w-full px-5 py-3.5 rounded-xl bg-white/70 text-gray-800 focus:outline-none"
+              className="glass-input w-full px-4 py-3 rounded-xl bg-white/70 text-gray-800 focus:outline-none"
             >
               <option value="seeker">Talent Seeker (Student/Job Seeker)</option>
               <option value="finder">Talent Finder (Employer)</option>
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                Password
-              </label>
-              <input
-                name="password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                className="glass-input w-full px-5 py-3.5 rounded-xl placeholder-gray-400 text-gray-900"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Password
+            </label>
+            <input
+              name="password"
+              type="password"
+              required
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              className="glass-input w-full px-4 py-3 rounded-xl placeholder-gray-400 text-gray-900"
+            />
+          </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                Confirm Password
-              </label>
-              <input
-                name="confirmPassword"
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="••••••••"
-                className="glass-input w-full px-5 py-3.5 rounded-xl placeholder-gray-400 text-gray-900"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Confirm Password
+            </label>
+            <input
+              name="confirmPassword"
+              type="password"
+              required
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="••••••••"
+              className="glass-input w-full px-4 py-3 rounded-xl placeholder-gray-400 text-gray-900"
+            />
           </div>
 
           <motion.button
@@ -167,12 +171,12 @@ const Register = () => {
             whileTap={{ scale: 0.98 }}
             disabled={loading}
             type="submit"
-            className="w-full py-3.5 px-4 text-white rounded-xl font-semibold text-lg glow-button mt-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 px-4 text-white rounded-xl font-semibold text-lg glow-button disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating account...' : 'Create Account'}
           </motion.button>
 
-          <p className="text-center text-sm text-gray-600 mt-8">
+          <p className="text-center text-sm text-gray-600 mt-6">
             Already have an account?{' '}
             <Link
               to="/login"

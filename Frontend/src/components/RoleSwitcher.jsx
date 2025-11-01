@@ -19,7 +19,7 @@ const RoleSwitcher = ({ user, onChange }) => {
     setLoading(true);
     try {
       // Call backend API to switch role
-      await authService.switchRole();
+      const response = await authService.switchRole();
       
       // Get fresh user data from backend
       const updatedUser = await authService.getCurrentUser();
