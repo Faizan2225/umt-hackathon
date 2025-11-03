@@ -1,207 +1,273 @@
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 
-// Floating shape component (no changes)
-const FloatingShape = ({ position, size, bgColor, delay = 0 }) => {
-  const floatingVariants = {
-    float: {
-      y: [0, -20, 0],
-      transition: { repeat: Infinity, duration: 6, ease: 'easeInOut' },
-    },
-  };
+/* ──────── Floating orb animation ──────── */
+const float = {
+  float: {
+    y: [0, -45, 0],
+    x: [0, 25, 0],
+    rotate: [0, 6, 0],
+    transition: { repeat: Infinity, duration: 9, ease: 'easeInOut' },
+  },
+};
+
+/* ──────── Parallax wrapper ──────── */
+const Parallax = ({ children, speed = -0.5 }) => {
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 1200], [0, speed * 150]);
+  return <motion.div style={{ y }}>{children}</motion.div>;
+};
+
+/* ──────── Animated counter on scroll ──────── */
+const Counter = ({ end, label }) => {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-120px' });
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    let cur = 0;
+    const inc = end / 80;
+    const timer = setInterval(() => {
+      cur += inc;
+      if (cur >= end) {
+        setValue(end);
+        clearInterval(timer);
+      } else setValue(Math.floor(cur));
+    }, 25);
+    return () => clearInterval(timer);
+  }, [inView, end]);
 
   return (
-    <motion.div
-      className={`absolute ${position} w-${size} h-${size} ${bgColor} rounded-full filter blur-3xl`}
-      variants={floatingVariants}
-      animate="float"
-      transition={{ delay }}
-    />
+    <div ref={ref} className="text-center">
+      <motion.div
+        className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={inView ? { opacity: 1, scale: 1 } : {}}
+        transition={{ duration: 0.6 }}
+      >
+        {value}+
+      </motion.div>
+      <p className="mt-2 text-sm md:text-lg font-medium text-gray-700">{label}</p>
+    </div>
   );
 };
 
-// Button component (no changes)
-const Button = ({ to, text, gradient, bgColor, textColor, icon, extraClasses }) => {
+/* ──────── 3D Tilt Card (mouse move) ──────── */
+const TiltCard = ({ children, idx }) => {
+  const card = useRef(null);
+  const [rx, setRx] = useState(0);
+  const [ry, setRy] = useState(0);
+
+  const onMove = (e) => {
+    const el = card.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.width / 2, cy = r.height / 2;
+    const dx = (e.clientX - r.left - cx) / cx;
+    const dy = (e.clientY - r.top - cy) / cy;
+    setRy(dx * 16);
+    setRx(-dy * 16);
+  };
+  const onLeave = () => { setRx(0); setRy(0); };
+
   return (
-    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-      <Link
-        to={to}
-        className={`inline-block px-8 sm:px-12 py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-lg ${gradient} ${bgColor} ${textColor} shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 relative overflow-hidden group ${extraClasses}`}
-      >
-        <span className="relative z-10 flex items-center gap-2">
-          {text}
-          {icon && <span className="group-hover:translate-x-1 transition-transform">{icon}</span>}
-        </span>
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      </Link>
+    <motion.div
+      ref={card}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      initial={{ opacity: 0, y: 60 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-100px' }}
+      transition={{ delay: idx * 0.15, duration: 0.7 }}
+      style={{
+        transform: `perspective(1200px) rotateX(${rx}deg) rotateY(${ry}deg)`,
+        transition: 'transform 0.12s ease-out',
+      }}
+      className="relative group"
+    >
+      <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl opacity-0 group-hover:opacity-70 blur-lg transition-opacity duration-500" />
+      {children}
     </motion.div>
   );
 };
 
+/* ──────── Main Landing Component ──────── */
 const Landing = () => {
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    const m = (e) => setMouse({ x: e.clientX, y: e.clientY });
+    window.addEventListener('mousemove', m);
+    return () => window.removeEventListener('mousemove', m);
+  }, []);
+
   return (
-    <div className="min-h-screen relative overflow-hidden flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Animated Background Shapes */}
-      <div className="campus-dots"></div>
-      <FloatingShape position="top-20 left-1/4" size="96" bgColor="bg-indigo-400/20" />
-      <FloatingShape position="top-1/2 right-1/4" size="128" bgColor="bg-purple-400/15" delay={0.5} />
-      <FloatingShape position="bottom-20 left-1/3" size="80" bgColor="bg-pink-400/15" delay={1} />
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* Cursor glow */}
+      <div
+        className="pointer-events-none fixed inset-0 z-30"
+        style={{
+          background: `radial-gradient(600px at ${mouse.x}px ${mouse.y}px, rgba(139,92,246,0.15), transparent 80%)`,
+        }}
+      />
 
-      {/* Hero Section */}
-      <section className="relative z-10 flex flex-col items-center justify-center text-center flex-grow px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
-        <div className="max-w-6xl mx-auto w-full">
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-100/50 backdrop-blur-sm border border-indigo-200/50 mb-6">
-              <span className="text-indigo-700 font-semibold text-sm">🚀 Join thousands of students and employers</span>
-            </div>
-          </motion.div>
-
-          {/* Primary CTA */}
-          <Button
-            to="/register"
-            text="Get Started"
-            gradient="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"
-            bgColor="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"
-            textColor="text-white"
-            icon="→"
-          />
-
-          {/* Secondary CTA */}
-          <Button
-            to="/jobs"
-            text="🔍 Browse Jobs"
-            bgColor="bg-white/80 backdrop-blur-xl"
-            textColor="text-gray-900"
-            extraClasses="hover:border-indigo-400/70 hover:bg-white"
-          />
-        </div>
-      </section>
-
-      {/* Stats Section */}
+      {/* Floating orbs */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="mt-16 sm:mt-20 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto text-center"
-      >
-        {[{ number: '1000+', label: 'Active Jobs' }, { number: '500+', label: 'Students' }, { number: '50+', label: 'Employers' }].map((stat, idx) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.7 + idx * 0.1 }}
-            className="text-center"
-          >
-            <div className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-              {stat.number}
-            </div>
-            <div className="text-sm sm:text-base text-gray-600 font-medium">{stat.label}</div>
-          </motion.div>
-        ))}
-      </motion.div>
+        variants={float}
+        animate="float"
+        className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full blur-3xl opacity-30"
+      />
+      <motion.div
+        variants={float}
+        animate="float"
+        transition={{ delay: 1 }}
+        className="absolute bottom-32 right-20 w-96 h-96 bg-gradient-to-tr from-pink-400 to-purple-600 rounded-full blur-3xl opacity-25"
+      />
 
-      {/* Feature Cards */}
-      <section className="w-full py-16 sm:py-20 md:py-28 mb-24 relative z-10 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12 sm:mb-16"
-          >
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
-              Why Choose <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">CampusConnect</span>?
-            </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to connect talent with opportunity
-            </p>
-          </motion.div>
+      {/* ───── HERO SECTION ───── */}
+      <section className="relative z-10 flex min-h-screen items-center justify-center pt-32 pb-16 px-4">
+        <Parallax speed={-0.5}>
+          <div className="mx-auto max-w-7xl text-center">
+            <motion.h1
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1 }}
+              className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight"
+            >
+              <span className="block text-gray-900">Connect</span>
+              <span className="block bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-gradient">
+                Talent & Opportunity
+              </span>
+            </motion.h1>
 
-          <div className="flex justify-center">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 lg:gap-10 w-full" style={{ maxWidth: '1000px' }}>
-              {[{ icon: "🎓", title: "For Seekers", desc: "Browse opportunities, apply effortlessly, and track your career growth.", gradient: "from-indigo-500/20 to-purple-500/20", borderGradient: "from-indigo-400/50 to-purple-400/50", features: ["Smart Job Matching", "Easy Applications", "Track Progress"] },
-              { icon: "💼", title: "For Finders", desc: "Post roles, connect with talent, and manage applicants with ease.", gradient: "from-purple-500/20 to-pink-500/20", borderGradient: "from-purple-400/50 to-pink-400/50", features: ["Post Jobs Easily", "Manage Applicants", "Chat Integration"] },
-              { icon: "🤖", title: "Smart Matching", desc: "AI-powered recommendations connect the right candidates to the right roles.", gradient: "from-blue-500/20 to-indigo-500/20", borderGradient: "from-blue-400/50 to-indigo-400/50", features: ["AI Recommendations", "Skill Matching", "Instant Notifications"] }]
-                .map((item, idx) => (
-                  <motion.div
-                    key={item.title}
-                    initial={{ y: 30, opacity: 0 }}
-                    whileInView={{ y: 0, opacity: 1 }}
-                    viewport={{ once: true }}
-                    whileHover={{ y: -8, scale: 1.02, transition: { duration: 0.3 } }}
-                    transition={{ delay: idx * 0.15, duration: 0.5 }}
-                    className="relative group w-full"
-                  >
-                    <div className={`relative overflow-hidden p-8 sm:p-10 rounded-3xl border-2 border-white/40 shadow-2xl backdrop-blur-2xl bg-white/60 hover:border-indigo-300/60 transition-all duration-500 h-full flex flex-col w-full`}>
-                      {/* Gradient Accent Bar */}
-                      <div className={`absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r ${item.borderGradient} rounded-t-3xl`}></div>
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="mx-auto mt-8 max-w-3xl text-lg font-medium text-gray-600 md:text-xl"
+            >
+              CampusConnect — where students meet dream jobs and employers discover top talent.
+            </motion.p>
 
-                      {/* Gradient Overlay on Hover */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-3xl`}></div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="mt-12 flex flex-col items-center gap-6 sm:flex-row sm:justify-center"
+            >
+              <Link
+                to="/register"
+                className="group relative overflow-hidden rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-10 py-5 text-lg font-bold text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-indigo-500/50"
+              >
+                <span className="relative z-10">Get Started Free</span>
+                <div className="absolute inset-0 bg-white opacity-0 transition-opacity group-hover:opacity-20" />
+              </Link>
 
-                      {/* Content */}
-                      <div className="relative z-10 flex flex-col flex-grow">
-                        <div className="text-6xl sm:text-7xl mb-6 transform group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
-                        <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 tracking-tight group-hover:text-indigo-700 transition-colors">{item.title}</h3>
-                        <p className="text-gray-700 text-base sm:text-lg leading-relaxed mb-6 flex-grow">{item.desc}</p>
-                        
-                        {/* Features List */}
-                        <ul className="space-y-2">
-                          {item.features.map((feature, fIdx) => (
-                            <li key={fIdx} className="flex items-center gap-2 text-sm text-gray-600">
-                              <span className="text-indigo-600 font-bold">✓</span>
-                              {feature}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+              <Link
+                to="/jobs"
+                className="rounded-full border-2 border-indigo-200 bg-white px-10 py-5 text-lg font-bold text-indigo-700 shadow-lg transition-all duration-300 hover:border-indigo-400 hover:shadow-xl"
+              >
+                Browse Jobs
+              </Link>
+            </motion.div>
+          </div>
+        </Parallax>
+      </section>
 
-                      {/* Animated Glow Border on Hover */}
-                      <div className={`absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-indigo-300/50 transition-all duration-500 pointer-events-none`}></div>
-                    </div>
-                  </motion.div>
-                ))}
-            </div>
+      {/* ───── STATS SECTION (with more space) ───── */}
+      <section className="py-24 bg-white/70 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="grid grid-cols-1 gap-24 text-center md:grid-cols-3">
+            <Counter end={1000} label="Active Jobs" />
+            <Counter end={500} label="Students" />
+            <Counter end={50} label="Employers" />
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="w-full mb-24 relative z-10"
-      >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl p-12 sm:p-16 md:p-20 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 shadow-2xl">
-            {/* Decorative Elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-            
-            <div className="relative z-10 text-center">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-6">Ready to Get Started?</h2>
-              <p className="text-lg sm:text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
-                Join thousands of students and employers who are already using CampusConnect to build their future.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button to="/register" text="Create Account" bgColor="bg-white text-indigo-600" />
-                <Button to="/jobs" text="Explore Jobs" bgColor="bg-white/10 backdrop-blur-sm text-white" />
-              </div>
-            </div>
+      {/* ───── FEATURES SECTION (with more space between cards) ───── */}
+      <section className="py-48 px-4">
+        <div className="mx-auto max-w-7xl">
+          <motion.h2
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="mb-24 text-center text-4xl font-bold md:text-5xl"
+          >
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Why CampusConnect Stands Out
+            </span>
+          </motion.h2>
+
+          <div className="grid grid-cols-1 gap-32 md:grid-cols-3">
+            {[{
+                title: 'For Seekers', desc: 'AI-matched jobs, one-click apply, real-time tracking.', grad: 'from-blue-500 to-indigo-600' },
+              { title: 'For Employers', desc: 'Post roles, screen talent, hire faster with smart tools.', grad: 'from-purple-500 to-pink-600' },
+              { title: 'Smart Matching', desc: 'AI recommends perfect fits. No more guesswork.', grad: 'from-emerald-500 to-teal-600' },
+            ].map((f, i) => (
+              <TiltCard key={i} idx={i}>
+                <div className="relative rounded-2xl bg-white/90 p-10 shadow-xl backdrop-blur-xl transition-transform duration-300 group-hover:scale-105">
+                  <div className={`mb-8 bg-gradient-to-br ${f.grad} bg-clip-text text-6xl text-transparent`}></div>
+                  <h3 className="mb-4 text-2xl font-bold text-gray-800">{f.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{f.desc}</p>
+                </div>
+              </TiltCard>
+            ))}
           </div>
         </div>
-      </motion.section>
-      
-      {/* Spacer before footer */}
-      <div className="h-12 md:h-16"></div>
+      </section>
+
+      {/* ───── FINAL CTA (with more space) ───── */}
+      <section className="relative py-48 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white overflow-hidden">
+        <Parallax speed={0.4}>
+          <div className="mx-auto max-w-5xl text-center horizontal-gap-45">
+            <motion.h2
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mb-8 text-4xl font-bold md:text-5xl"
+            >
+              Ready to Shape the Future?
+            </motion.h2>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mb-16 text-xl text-white/90"
+            >
+              Join 1,500+ users already building careers and teams.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-col gap-8 sm:flex-row sm:justify-center"
+            >
+              <Link
+                to="/register"
+                className="group relative rounded-full bg-white px-12 py-6 text-lg font-bold text-purple-700 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-white/50"
+              >
+                <span className="relative z-10">Create Free Account</span>
+                <motion.div
+                  animate={{ scale: [1, 1.15, 1] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="absolute inset-0 rounded-full bg-white/30 opacity-0 group-hover:opacity-100"
+                />
+              </Link>
+
+              <Link
+                to="/jobs"
+                className="rounded-full border border-white/30 bg-white/20 px-12 py-6 text-lg font-bold backdrop-blur-md transition-all duration-300 hover:bg-white/30"
+              >
+                Explore Opportunities
+              </Link>
+            </motion.div>
+          </div>
+        </Parallax>
+      </section>
     </div>
   );
 };
